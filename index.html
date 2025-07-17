@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chismes Paradise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #7e22ce;
+      --secondary: #ec4899;
+      --light: #f5f3ff;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to bottom, var(--light), #f3e8ff);
+    }
+
+    .modal {
+      backdrop-filter: blur(4px);
+    }
+
+    .rounded-xl {
+      border: 3px dashed var(--primary);
+      background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+
+    .float-btn {
+      animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- Contenedor principal -->
+  <div class="container mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl p-6 mb-8 shadow-lg">
+      <h1 class="text-3xl font-bold text-center">Bienvenido al Paraíso de Chismes 💬</h1>
+      <div class="flex justify-end mt-4">
+        <button id="adminBtn" class="bg-white text-purple-600 px-4 py-2 rounded-full font-medium shadow">👑 Admin</button>
+      </div>
+    </header>
+
+    <!-- Últimos Chismes -->
+    <section>
+      <h2 class="text-2xl font-bold mb-4 text-purple-700">📢 Últimos Chismes</h2>
+      <div id="chismesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </section>
+  </div>
+
+  <!-- Modal Login -->
+  <div id="loginModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-xl">
+      <h3 class="text-2xl font-bold text-purple-700 mb-6">🔐 Ingreso Administrador</h3>
+      <form id="loginForm">
+        <input type="text" id="username" placeholder="Usuario" required class="w-full px-4 py-2 mb-4 rounded-lg border border-gray-300" />
+        <input type="password" id="password" placeholder="Contraseña" required class="w-full px-4 py-2 mb-6 rounded-lg border border-gray-300" />
+        <div class="flex justify-end space-x-4">
+          <button type="button" id="closeLogin" class="text-gray-500">Cancelar</button>
+          <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded-lg">Entrar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Agregar Chisme -->
+  <div id="addChismeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-xl">
+      <h3 class="text-2xl font-bold text-purple-700 mb-6">📝 Publicar Chisme</h3>
+      <form id="chismeForm">
+        <input type="text" id="chismeTitle" placeholder="Título del chisme" required class="w-full px-4 py-2 mb-4 rounded-lg border border-gray-300" />
+        <textarea id="chismeContent" placeholder="Descripción" required class="w-full px-4 py-2 mb-4 rounded-lg border border-gray-300"></textarea>
+        <input type="file" id="chismeImages" accept="image/*" required class="block w-full mb-6 text-sm text-gray-500 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" />
+        <div class="flex justify-end space-x-4">
+          <button type="button" id="closeChisme" class="text-gray-500">Cancelar</button>
+          <button type="submit" class="bg-purple-500 text-white px-4 py-2 rounded-lg">Publicar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Botón flotante -->
+  <button id="addBtn" class="float-btn fixed bottom-8 right-8 bg-pink-500 hover:bg-pink-600 text-white w-16 h-16 rounded-full shadow-xl flex items-center justify-center text-3xl">+</button>
+
+  <!-- Script -->
+  <script>
+    const adminCredentials = {
+      username: 'adminparadiso',
+      password: 'chismes123'
+    };
+
+    let currentUser = null;
+
+    const elements = {
+      adminBtn: document.getElementById('adminBtn'),
+      loginModal: document.getElementById('loginModal'),
+      addChismeModal: document.getElementById('addChismeModal'),
+      loginForm: document.getElementById('loginForm'),
+      chismeForm: document.getElementById('chismeForm'),
+      username: document.getElementById('username'),
+      password: document.getElementById('password'),
+      chismeTitle: document.getElementById('chismeTitle'),
+      chismeContent: document.getElementById('chismeContent'),
+      chismeImages: document.getElementById('chismeImages'),
+      closeLogin: document.getElementById('closeLogin'),
+      closeChisme: document.getElementById('closeChisme'),
+      chismesContainer: document.getElementById('chismesContainer'),
+      addBtn: document.getElementById('addBtn')
+    };
+
+    function showModal(id) {
+      elements[id].classList.remove('hidden');
+    }
+
+    function hideModal(id) {
+      elements[id].classList.add('hidden');
+    }
+
+    function saveChisme(chisme) {
+      const chismes = JSON.parse(localStorage.getItem('chismes')) || [];
+      chismes.push(chisme);
+      localStorage.setItem('chismes', JSON.stringify(chismes));
+    }
+
+    function getChismes() {
+      return JSON.parse(localStorage.getItem('chismes')) || [];
+    }
+
+    function loadChismes() {
+      elements.chismesContainer.innerHTML = '';
+      const chismes = getChismes();
+      chismes.forEach((chisme) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow';
+        card.innerHTML = `
+          <img src="${chisme.image}" class="w-full h-48 object-cover">
+          <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">${chisme.title}</h3>
+            <p class="text-gray-600 mb-4">${chisme.content}</p>
+            <div class="flex justify-between items-center text-sm text-gray-500">
+              <span>Por: ${chisme.author}</span>
+              <span>${new Date(chisme.timestamp).toLocaleDateString()}</span>
+            </div>
+          </div>
+        `;
+        elements.chismesContainer.appendChild(card);
+      });
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const username = elements.username.value.trim();
+      const password = elements.password.value.trim();
+
+      if (username === adminCredentials.username && password === adminCredentials.password) {
+        currentUser = username;
+        hideModal('loginModal');
+        showModal('addChismeModal');
+      } else {
+        alert('Usuario o contraseña incorrectos');
+      }
+    }
+
+    function addChisme(e) {
+      e.preventDefault();
+      const title = elements.chismeTitle.value.trim();
+      const content = elements.chismeContent.value.trim();
+      const file = elements.chismeImages.files[0];
+
+      if (!title || !content || !file) {
+        alert('Todos los campos son obligatorios.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const chisme = {
+          title,
+          content,
+          image: reader.result,
+          author: currentUser,
+          timestamp: Date.now()
+        };
+        saveChisme(chisme);
+        elements.chismeForm.reset();
+        hideModal('addChismeModal');
+        loadChismes();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadChismes();
+
+      elements.adminBtn.addEventListener('click', () => showModal('loginModal'));
+      elements.addBtn.addEventListener('click', () => showModal('loginModal'));
+      elements.closeLogin.addEventListener('click', () => hideModal('loginModal'));
+      elements.closeChisme.addEventListener('click', () => hideModal('addChismeModal'));
+      elements.loginForm.addEventListener('submit', handleLogin);
+      elements.chismeForm.addEventListener('submit', addChisme);
+    });
+  </script>
+</body>
+</html>
