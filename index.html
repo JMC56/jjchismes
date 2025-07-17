@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>JJ Chismes</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
   <style>
@@ -101,8 +103,23 @@
   </div>
 
   <script>
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbp0nzU1Rt01Nar6on1YQqLFOxPDPxKzA",
+      authDomain: "jj-chismes.firebaseapp.com",
+      databaseURL: "https://jj-chismes-default-rtdb.firebaseio.com",
+      projectId: "jj-chismes",
+      storageBucket: "jj-chismes.firebasestorage.app",
+      messagingSenderId: "893502208868",
+      appId: "1:893502208868:web:2d484a975e174310205871"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     const adminCredentials = { username: 'adminparadiso', password: 'chismes123' };
-    let currentUser = null;
+    let currentUser  = null;
 
     const elements = {
       adminBtn: document.getElementById('adminBtn'),
@@ -129,46 +146,35 @@
     function showModal(id) { elements[id].classList.remove('hidden'); }
     function hideModal(id) { elements[id].classList.add('hidden'); }
 
-    function getUsers() {
-      const users = JSON.parse(localStorage.getItem('usuarios')) || [];
-      users.push(adminCredentials); // Asegura que el admin siempre esté
-      return users;
-    }
-
-    function saveUser(user) {
-      const users = getUsers().filter(u => u.username !== 'adminparadiso'); // evita duplicar admin
-      users.push(user);
-      localStorage.setItem('usuarios', JSON.stringify(users));
+    function saveUser (user) {
+      db.ref('users').push(user);
     }
 
     function saveChisme(chisme) {
-      const chismes = JSON.parse(localStorage.getItem('chismes')) || [];
-      chismes.push(chisme);
-      localStorage.setItem('chismes', JSON.stringify(chismes));
-    }
-
-    function getChismes() {
-      return JSON.parse(localStorage.getItem('chismes')) || [];
+      db.ref('chismes').push(chisme);
     }
 
     function loadChismes() {
-      elements.chismesContainer.innerHTML = '';
-      const chismes = getChismes();
-      chismes.forEach((chisme) => {
-        const card = document.createElement('div');
-        card.className = 'bg-white text-black rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow';
-        card.innerHTML = `
-          <img src="${chisme.image}" class="w-full h-48 object-cover">
-          <div class="p-6">
-            <h3 class="text-xl font-bold mb-2">${chisme.title}</h3>
-            <p class="text-gray-600 mb-4">${chisme.content}</p>
-            <div class="flex justify-between items-center text-sm text-gray-500">
-              <span>Por: ${chisme.author}</span>
-              <span>${new Date(chisme.timestamp).toLocaleDateString()}</span>
+      db.ref('chismes').on('value', (snapshot) => {
+        elements.chismesContainer.innerHTML = '';
+        const chismes = snapshot.val() || {};
+        Object.keys(chismes).forEach((key) => {
+          const chisme = chismes[key];
+          const card = document.createElement('div');
+          card.className = 'bg-white text-black rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow';
+          card.innerHTML = `
+            <img src="${chisme.image}" class="w-full h-48 object-cover">
+            <div class="p-6">
+              <h3 class="text-xl font-bold mb-2">${chisme.title}</h3>
+              <p class="text-gray-600 mb-4">${chisme.content}</p>
+              <div class="flex justify-between items-center text-sm text-gray-500">
+                <span>Por: ${chisme.author}</span>
+                <span>${new Date(chisme.timestamp).toLocaleDateString()}</span>
+              </div>
             </div>
-          </div>
-        `;
-        elements.chismesContainer.appendChild(card);
+          `;
+          elements.chismesContainer.appendChild(card);
+        });
       });
     }
 
@@ -176,15 +182,28 @@
       e.preventDefault();
       const username = elements.username.value.trim();
       const password = elements.password.value.trim();
-      const users = getUsers();
-      const match = users.find(u => u.username === username && u.password === password);
 
-      if (match) {
-        currentUser = username;
+      if (!username || !password) {
+        alert('Por favor completa todos los campos');
+        return;
+      }
+
+      if (username === adminCredentials.username && password === adminCredentials.password) {
+        currentUser  = username;
         hideModal('loginModal');
         showModal('addChismeModal');
       } else {
-        alert('Credenciales inválidas');
+        db.ref('users').once('value').then(snapshot => {
+          const users = snapshot.val() || {};
+          const match = Object.values(users).some(user => user.username === username && user.password === password);
+          if (match) {
+            currentUser  = username;
+            hideModal('loginModal');
+            showModal('addChismeModal');
+          } else {
+            alert('Credenciales inválidas');
+          }
+        });
       }
     }
 
@@ -205,7 +224,7 @@
           title,
           content,
           image: reader.result,
-          author: currentUser,
+          author: currentUser ,
           timestamp: Date.now()
         };
         saveChisme(chisme);
@@ -216,7 +235,7 @@
       reader.readAsDataURL(file);
     }
 
-    function registerUser(e) {
+    function registerUser (e) {
       e.preventDefault();
       const username = elements.newUsername.value.trim();
       const password = elements.newPassword.value.trim();
@@ -226,16 +245,18 @@
         return;
       }
 
-      const users = getUsers();
-      if (users.find(u => u.username === username)) {
-        alert('Ese usuario ya existe.');
-        return;
-      }
+      db.ref('users').once('value').then(snapshot => {
+        const users = snapshot.val() || {};
+        if (Object.values(users).some(user => user.username === username)) {
+          alert('Ese usuario ya existe.');
+          return;
+        }
 
-      saveUser({ username, password });
-      elements.registerForm.reset();
-      hideModal('registerModal');
-      alert('Usuario registrado con éxito.');
+        saveUser ({ username, password });
+        elements.registerForm.reset();
+        hideModal('registerModal');
+        alert('Usuario registrado con éxito.');
+      });
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -251,7 +272,7 @@
         showModal('registerModal');
       });
       elements.closeRegister.addEventListener('click', () => hideModal('registerModal'));
-      elements.registerForm.addEventListener('submit', registerUser);
+      elements.registerForm.addEventListener('submit', registerUser );
     });
   </script>
 </body>
