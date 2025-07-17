@@ -119,7 +119,7 @@
     const db = firebase.database();
 
     const adminCredentials = { username: 'adminparadiso', password: 'chismes123' };
-    let currentUser  = null;
+    let currentUser   = null;
 
     const elements = {
       adminBtn: document.getElementById('adminBtn'),
@@ -146,20 +146,34 @@
     function showModal(id) { elements[id].classList.remove('hidden'); }
     function hideModal(id) { elements[id].classList.add('hidden'); }
 
-    function saveUser (user) {
+    function saveUser  (user) {
       db.ref('users').push(user);
     }
 
     function saveChisme(chisme) {
-      db.ref('chismes').push(chisme);
+      return db.ref('chismes').push(chisme).then(ref => {
+        console.log('Chisme saved with ID:', ref.key);
+        return ref;
+      });
     }
 
     function loadChismes() {
-      db.ref('chismes').on('value', (snapshot) => {
+      db.ref('chismes').orderByChild('timestamp').on('value', (snapshot) => {
         elements.chismesContainer.innerHTML = '';
-        const chismes = snapshot.val() || {};
-        Object.keys(chismes).forEach((key) => {
-          const chisme = chismes[key];
+        const chismesData = snapshot.val() || {};
+        
+        // Convert to array and sort by timestamp (newest first)
+        const chismesArray = Object.entries(chismesData).map(([id, chisme]) => ({
+          id,
+          ...chisme
+        })).sort((a, b) => b.timestamp - a.timestamp);
+
+        if (chismesArray.length === 0) {
+          elements.chismesContainer.innerHTML = '<p class="text-purple-200">No hay chismes aún</p>';
+          return;
+        }
+
+        chismesArray.forEach(chisme => {
           const card = document.createElement('div');
           card.className = 'bg-white text-black rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow';
           card.innerHTML = `
@@ -189,7 +203,7 @@
       }
 
       if (username === adminCredentials.username && password === adminCredentials.password) {
-        currentUser  = username;
+        currentUser   = username;
         hideModal('loginModal');
         showModal('addChismeModal');
       } else {
@@ -197,7 +211,7 @@
           const users = snapshot.val() || {};
           const match = Object.values(users).some(user => user.username === username && user.password === password);
           if (match) {
-            currentUser  = username;
+            currentUser   = username;
             hideModal('loginModal');
             showModal('addChismeModal');
           } else {
@@ -224,18 +238,25 @@
           title,
           content,
           image: reader.result,
-          author: currentUser ,
+          author: currentUser,
           timestamp: Date.now()
         };
-        saveChisme(chisme);
-        elements.chismeForm.reset();
-        hideModal('addChismeModal');
-        loadChismes();
+        
+        saveChisme(chisme)
+          .then(() => {
+            elements.chismeForm.reset();
+            hideModal('addChismeModal');
+            loadChismes();  // Explicitly reload after save completes
+          })
+          .catch(error => {
+            console.error('Error saving chisme:', error);
+            alert('Error al guardar el chisme. Verifica la consola para más detalles.');
+          });
       };
       reader.readAsDataURL(file);
     }
 
-    function registerUser (e) {
+    function registerUser  (e) {
       e.preventDefault();
       const username = elements.newUsername.value.trim();
       const password = elements.newPassword.value.trim();
@@ -252,7 +273,7 @@
           return;
         }
 
-        saveUser ({ username, password });
+        saveUser  ({ username, password });
         elements.registerForm.reset();
         hideModal('registerModal');
         alert('Usuario registrado con éxito.');
@@ -272,7 +293,7 @@
         showModal('registerModal');
       });
       elements.closeRegister.addEventListener('click', () => hideModal('registerModal'));
-      elements.registerForm.addEventListener('submit', registerUser );
+      elements.registerForm.addEventListener('submit', registerUser  );
     });
   </script>
 </body>
