@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login de Usuario - JJ Chismes</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #1a1a1a; /* Fondo oscuro para el login */
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .login-container {
+      background-color: #fff;
+      color: #000;
+      border-radius: 20px; /* Esquinas muy redondeadas */
+      padding: 40px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      width: 300px; /* Ancho reducido */
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease;
+    }
+    .login-container:hover {
+      transform: scale(1.05);
+    }
+    .login-container:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 20px; /* Esquinas muy redondeadas */
+      background: linear-gradient(45deg, rgba(126, 34, 206, 0.5), rgba(236, 72, 153, 0.5));
+      z-index: 0;
+      filter: blur(10px);
+      opacity: 0.5;
+      transition: opacity 0.3s ease;
+    }
+    input {
+      width: 100%;
+      padding: 10px; /* Tamaño reducido */
+      margin: 10px 0;
+      border: 2px solid #ccc;
+      border-radius: 15px; /* Esquinas redondeadas */
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+    input:focus {
+      border-color: #7e22ce;
+      outline: none;
+      box-shadow: 0 0 5px #7e22ce, 0 0 10px #7e22ce;
+    }
+    button {
+      background-color: #7e22ce;
+      color: white;
+      padding: 10px; /* Tamaño reducido */
+      border: none;
+      border-radius: 15px; /* Esquinas redondeadas */
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+    button:hover {
+      background-color: #6b1fae;
+    }
+    h2 {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>🐷 Ingreso Usuario</h2>
+    <form id="loginUsuarioForm">
+      <input type="text" id="username" placeholder="Usuario" required />
+      <input type="password" id="password" placeholder="Contraseña" required />
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <script>
+    // Configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyDbp0nzU1Rt01Nar6on1YQqLFOxPDPxKzA",
+      authDomain: "jj-chismes.firebaseapp.com",
+      databaseURL: "https://jj-chismes-default-rtdb.firebaseio.com",
+      projectId: "jj-chismes",
+      storageBucket: "jj-chismes.firebasestorage.app",
+      messagingSenderId: "893502208868",
+      appId: "1:893502208868:web:2d484a975e174310205871"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Usuarios predefinidos
+    const defaultUsers = [
+      { username: 'usuario1', password: 'contraseña1' },
+      { username: 'usuario2', password: 'contraseña2' },
+      { username: 'usuario3', password: 'contraseña3' },
+      { username: 'usuario4', password: 'contraseña4' },
+      { username: 'usuario5', password: 'contraseña5' },
+      { username: 'usuario6', password: 'contraseña6' },
+      { username: 'usuario7', password: 'contraseña7' },
+      { username: 'usuario8', password: 'contraseña8' },
+      { username: 'usuario9', password: 'contraseña9' },
+      { username: 'usuario10', password: 'contraseña10' }
+    ];
+
+    let currentUser    = null;
+
+    const elements = {
+      loginUsuarioForm: document.getElementById('loginUsuarioForm'),
+      username: document.getElementById('username'),
+      password: document.getElementById('password'),
+    };
+
+    function handleLogin(e) {
+      e.preventDefault();
+      const username = elements.username.value.trim();
+      const password = elements.password.value.trim();
+
+      if (!username || !password) {
+        alert('Por favor completa todos los campos');
+        return;
+      }
+
+      const match = defaultUsers.some(user => user.username === username && user.password === password);
+      if (match) {
+        currentUser    = username;
+        window.location.href = 'index.html'; // Redirigir a la página principal
+      } else {
+        alert('Credenciales inválidas');
+      }
+    }
+
+    // Abrir el modal de inicio de sesión al cargar la página
+    window.onload = function() {
+      elements.loginUsuarioForm.reset(); // Limpiar el formulario
+      elements.username.focus(); // Enfocar el campo de usuario
+    };
+
+    elements.loginUsuarioForm.addEventListener('submit', handleLogin);
+  </script>
+</body>
+</html>
