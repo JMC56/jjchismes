@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>JJ Chismes</title>
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
   <style>
@@ -22,7 +22,7 @@
     }
 
     .modal {
-      background-color: rgba(0, 0, 0, 0.8); /* Fondo negro */
+      backdrop-filter: blur(4px);
     }
 
     .rounded-xl {
@@ -35,15 +35,6 @@
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(-5px); }
     }
-
-    .fade-in {
-      animation: fadeIn 0.5s ease-in-out forwards;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -51,6 +42,9 @@
   <div class="container mx-auto px-4 py-8">
     <header class="bg-gradient-to-r from-purple-600 to-pink-500 text-white rounded-xl p-8 mb-8 shadow-lg text-center">
       <h1 class="text-4xl md:text-5xl font-bold">🗣 Bienvenido al Paraíso de Chismes JJ CHISMES 🔥</h1>
+      <div class="mt-6">
+        <button id="adminBtn" class="bg-white text-purple-600 px-6 py-2 rounded-full font-semibold shadow">Acceder como Admin</button>
+      </div>
     </header>
 
     <section>
@@ -59,15 +53,19 @@
     </section>
   </div>
 
-  <!-- Modal Login Usuario -->
-  <div id="loginUsuarioModal" class="modal fixed inset-0 flex items-center justify-center z-50">
+  <!-- Modal Login -->
+  <div id="loginModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="bg-white text-black rounded-xl p-8 max-w-md w-full mx-4 shadow-xl">
-      <h3 class="text-2xl font-bold text-purple-700 mb-6">🐷 Ingreso Usuario</h3>
-      <form id="loginUsuarioForm">
+      <h3 class="text-2xl font-bold text-purple-700 mb-6">🐷 Ingreso Administrador / Miembro</h3>
+      <form id="loginForm">
         <input type="text" id="username" placeholder="Usuario" required class="w-full px-4 py-2 mb-4 rounded-lg border" />
         <input type="password" id="password" placeholder="Contraseña" required class="w-full px-4 py-2 mb-6 rounded-lg border" />
-        <div class="flex justify-end">
-          <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-lg">Entrar</button>
+        <div class="flex justify-between">
+          <button type="button" id="registerToggle" class="text-sm text-purple-600">+ Registrar nuevo miembro</button>
+          <div class="space-x-2">
+            <button type="button" id="closeLogin" class="text-gray-500">Cancelar</button>
+            <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-lg">Entrar</button>
+          </div>
         </div>
       </form>
     </div>
@@ -120,26 +118,15 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const defaultUsers = [
-      { username: 'usuarioEjemplo1', password: 'contraseñaSegura1' },
-      { username: 'usuarioEjemplo2', password: 'contraseñaSegura2' },
-      { username: 'usuarioEjemplo3', password: 'contraseñaSegura3' },
-      { username: 'usuarioEjemplo4', password: 'contraseñaSegura4' },
-      { username: 'usuarioEjemplo5', password: 'contraseñaSegura5' },
-      { username: 'usuarioEjemplo6', password: 'contraseñaSegura6' },
-      { username: 'usuarioEjemplo7', password: 'contraseñaSegura7' },
-      { username: 'usuarioEjemplo8', password: 'contraseñaSegura8' },
-      { username: 'usuarioEjemplo9', password: 'contraseñaSegura9' },
-      { username: 'usuarioEjemplo10', password: 'contraseñaSegura10' }
-    ];
-
+    const adminCredentials = { username: 'adminparadiso', password: 'chismes123' };
     let currentUser   = null;
 
     const elements = {
-      loginUsuarioModal: document.getElementById('loginUsuarioModal'),
+      adminBtn: document.getElementById('adminBtn'),
+      loginModal: document.getElementById('loginModal'),
       addChismeModal: document.getElementById('addChismeModal'),
       registerModal: document.getElementById('registerModal'),
-      loginUsuarioForm: document.getElementById('loginUsuarioForm'),
+      loginForm: document.getElementById('loginForm'),
       chismeForm: document.getElementById('chismeForm'),
       registerForm: document.getElementById('registerForm'),
       username: document.getElementById('username'),
@@ -149,15 +136,17 @@
       chismeImages: document.getElementById('chismeImages'),
       newUsername: document.getElementById('newUsername'),
       newPassword: document.getElementById('newPassword'),
+      closeLogin: document.getElementById('closeLogin'),
       closeChisme: document.getElementById('closeChisme'),
       closeRegister: document.getElementById('closeRegister'),
       chismesContainer: document.getElementById('chismesContainer'),
+      registerToggle: document.getElementById('registerToggle')
     };
 
     function showModal(id) { elements[id].classList.remove('hidden'); }
     function hideModal(id) { elements[id].classList.add('hidden'); }
 
-    function saveUser (user) {
+    function saveUser  (user) {
       db.ref('users').push(user);
     }
 
@@ -173,6 +162,7 @@
         elements.chismesContainer.innerHTML = '';
         const chismesData = snapshot.val() || {};
         
+        // Convert to array and sort by timestamp (newest first)
         const chismesArray = Object.entries(chismesData).map(([id, chisme]) => ({
           id,
           ...chisme
@@ -212,23 +202,23 @@
         return;
       }
 
-      db.ref('users').once('value').then(snapshot => {
-        const users = snapshot.val() || {};
-        const match = Object.values(users).some(user => user.username === username && user.password === password);
-        if (match) {
-          currentUser  = username;
-          hideModal('loginUsuarioModal');
-          document.body.classList.add('fade-in'); // Añadir clase de animación
-          setTimeout(() => {
-            loadChismes(); // Cargar chismes después de la animación
-          }, 500); // Esperar a que termine la animación
-        } else {
-          alert('Credenciales inválidas');
-        }
-      }).catch(error => {
-        console.error('Error al verificar las credenciales:', error);
-        alert('Error al verificar las credenciales. Verifica la consola para más detalles.');
-      });
+      if (username === adminCredentials.username && password === adminCredentials.password) {
+        currentUser   = username;
+        hideModal('loginModal');
+        showModal('addChismeModal');
+      } else {
+        db.ref('users').once('value').then(snapshot => {
+          const users = snapshot.val() || {};
+          const match = Object.values(users).some(user => user.username === username && user.password === password);
+          if (match) {
+            currentUser   = username;
+            hideModal('loginModal');
+            showModal('addChismeModal');
+          } else {
+            alert('Credenciales inválidas');
+          }
+        });
+      }
     }
 
     function addChisme(e) {
@@ -248,7 +238,7 @@
           title,
           content,
           image: reader.result,
-          author: currentUser ,
+          author: currentUser,
           timestamp: Date.now()
         };
         
@@ -266,7 +256,7 @@
       reader.readAsDataURL(file);
     }
 
-    function registerUser (e) {
+    function registerUser  (e) {
       e.preventDefault();
       const username = elements.newUsername.value.trim();
       const password = elements.newPassword.value.trim();
@@ -283,7 +273,7 @@
           return;
         }
 
-        saveUser ({ username, password });
+        saveUser  ({ username, password });
         elements.registerForm.reset();
         hideModal('registerModal');
         alert('Usuario registrado con éxito.');
@@ -293,21 +283,17 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadChismes();
 
-      // Verificar si ya hay usuarios en la base de datos
-      db.ref('users').once('value').then(snapshot => {
-        const users = snapshot.val() || {};
-        if (Object.keys(users).length === 0) {
-          // No hay usuarios, agregar credenciales predeterminadas
-          defaultUsers.forEach(user => saveUser (user));
-          alert('Usuarios predeterminados registrados.');
-        }
-      });
-
-      elements.loginUsuarioForm.addEventListener('submit', handleLogin);
-      elements.chismeForm.addEventListener('submit', addChisme);
-      elements.registerForm.addEventListener('submit', registerUser );
+      elements.adminBtn.addEventListener('click', () => showModal('loginModal'));
+      elements.closeLogin.addEventListener('click', () => hideModal('loginModal'));
       elements.closeChisme.addEventListener('click', () => hideModal('addChismeModal'));
+      elements.loginForm.addEventListener('submit', handleLogin);
+      elements.chismeForm.addEventListener('submit', addChisme);
+      elements.registerToggle.addEventListener('click', () => {
+        hideModal('loginModal');
+        showModal('registerModal');
+      });
       elements.closeRegister.addEventListener('click', () => hideModal('registerModal'));
+      elements.registerForm.addEventListener('submit', registerUser  );
     });
   </script>
 </body>
